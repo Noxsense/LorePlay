@@ -20,40 +20,168 @@ local didIdleEmote = false
 local isActiveEmoting = false
 local isFastTraveling = false
 
+local loadedOrCreatedEmotesTable
+
+function IdleEmotes.ReloadIdleEmotes()
+	loadedOrCreatedEmotesTable = {}
+
+	-- Use if Emotes were not Loaded.
+	local presetIdleEmotesTable = {
+		["EVENT_IDLE_ID_TABLE"] = {
+			["isEnabled"] = false,
+			[EVENT_TRADE_INVITE_ACCEPTED] = {
+				[1] = 76,
+				[2] = 35,
+				[3] = 19,
+				[4] = 36,
+				[5] = 50,
+				[6] = 41,
+				[7] = 152,
+				[8] = 15,
+				[9] = 153,
+			}
+		},
+		["OPTIONAL_IDLE_TABLE"] = {
+			["ADD_DRUNK_TABLE"] = {
+				[1] = 8,
+				[2] = 8,
+				[3] = 139,
+				[4] = 139,
+				[5] = 162,
+				[6] = 162,
+				[7] = 79,
+				[8] = 79,
+				[9] = 115,
+				[10] = 90,
+			},
+			["ADD_WORSHIP_TABLE"] = {
+				[1] = 104,
+				[2] = 52,
+				[3] = 171,
+			},
+			["ADD_DANCE_TABLE"] = {
+				[1] = 72,
+				[2] = 189,
+				[3] = 181,
+				[4] = 182,
+				[5] = 183,
+				[6] = 180,
+				[7] = 206,
+				[8] = 185,
+				[9] = 186,
+				[10] = 187,
+				[11] = 188,
+			},
+			["ADD_EXERCISE_TABLE"] = {
+				[1] = 84,
+				[2] = 85,
+				[3] = 113,
+			},
+			["ADD_INSTRUMENT_TABLE"] = {
+				[1] = 5,
+				[2] = 6,
+				[3] = 7,
+			},
+		},
+		["DEFAULT_IDLE_TABLE"] = {
+			["Zone"] = {
+				[1] = 99,
+				[2] = 119,
+				[3] = 120,
+				[4] = 121,
+				[5] = 123,
+				[6] = 102,
+				[7] = 200,
+				[8] = 15,
+				[9] = 10,
+				[10] = 38,
+				[11] = 190,
+			},
+			["City"] = {
+				[1] = 201,
+				[2] = 107,
+				[3] = 194,
+				[4] = 8,
+				[5] = 173,
+				[6] = 100,
+				[7] = 38,
+				[8] = 168,
+				[9] = 9,
+				[10] = 190,
+				[11] = 198,
+			},
+			["Dungeon"] = {
+				[1] = 194,
+				[2] = 1,
+				[3] = 153,
+				[4] = 1,
+				[5] = 1,
+				[6] = 122,
+				[7] = 101,
+			},
+			["Housing"] = {
+				[1] = 10,
+				[2] = 10,
+				[3] = 99,
+				[4] = 119,
+				[5] = 191,
+				[6] = 191,
+				[7] = 192,
+				[8] = 192,
+				[9] = 9,
+				[10] = 177,
+				[11] = 207,
+				[12] = 208,
+				[13] = 125,
+				[14] = 125,
+				[15] = 118,
+				[16] = 116,
+			}
+		},
+	}
+
+	-- Load from Customized.
+	local fromSavedVariables
+		= LorePlaySavedCustomIdleEmotes and LorePlay.LPUtilities.DeepCopy(LorePlaySavedCustomIdleEmotes["EMOTES"] or {})
+		or {}
+
+	local allEmotesTableExists = LPEmotesTable.allEmotesTable ~= nil
+	local fallBackEmote = 91 -- /stretch
+
+	for tableKey, tableValue in pairs(fromSavedVariables) do
+		for categoryKey, emoteTable in pairs(tableValue) do
+			if emoteTable ~= nil and type(emoteTable) == "table" then
+				for i, emote in pairs(emoteTable) do
+					if type(emote) == "string" then
+						if allEmotesTableExists and LPEmotesTable.allEmotesTable[emote] ~= nil then
+							fromSavedVariables[tableKey][categoryKey][i] = LPEmotesTable.allEmotesTable[emote]["index"]
+						else
+							fromSavedVariables[tableKey][categoryKey][i] = fallBackEmote
+						end
+					else
+						fromSavedVariables[tableKey][categoryKey][i] = emote
+					end
+				end
+			end
+		end
+	end
+
+	loadedOrCreatedEmotesTable = LorePlay.LPUtilities.DeepMergeTables(
+		presetIdleEmotesTable,
+		fromSavedVariables)
+
+	return loadedOrCreatedEmotesTable
+end
 
 
 function IdleEmotes.CreateEventIdleEmotesTable()
-	eventIdleTable = {
-		["isEnabled"] = false,
-		[EVENT_TRADE_INVITE_ACCEPTED] = {
-			[1] = 76,
-			[2] = 35,
-			[3] = 19,
-			[4] = 36,
-			[5] = 50,
-			[6] = 41,
-			[7] = 152,
-			[8] = 15,
-			[9] = 153,
-		}
-	}
+	eventIdleTable = loadedOrCreatedEmotesTable["EVENT_IDLE_ID_TABLE"]
 end
 
 
 local function AddDrunkToCities()
 	local numOfEmotes = #defaultIdleTable["City"]
-	local drunkTable = {
-		[1] = 8,
-		[2] = 8,
-		[3] = 139,
-		[4] = 139,
-		[5] = 162,
-		[6] = 162,
-		[7] = 79,
-		[8] = 79,
-		[9] = 115,
-		[10] = 90,
-	}
+	local drunkTable = loadedOrCreatedEmotesTable["OPTIONAL_IDLE_TABLE"]["ADD_DRUNK_TABLE"]
 	local numOfDrunks = #drunkTable
 	for i = 1, numOfDrunks, 1 do
 		defaultIdleTable["City"][numOfEmotes + i] = drunkTable[i]
@@ -63,11 +191,7 @@ end
 
 local function AddWorshipToDungeons()
 	local numOfEmotes = #defaultIdleTable["Dungeon"]
-	local worshipTable = {
-		[1] = 104,
-		[2] = 52,
-		[3] = 171,
-	}
+	local worshipTable = loadedOrCreatedEmotesTable["OPTIONAL_IDLE_TABLE"]["ADD_WORSHIP_TABLE"]
 	local numOfWorships = #worshipTable
 	for i = 1, numOfWorships, 1 do
 		defaultIdleTable["Dungeon"][numOfEmotes + i] = worshipTable[i]
@@ -77,11 +201,7 @@ end
 
 local function AddWorshipToCities()
 	local numOfEmotes = #defaultIdleTable["City"]
-	local worshipTable = {
-		[1] = 104,
-		[2] = 52,
-		[3] = 171,
-	}
+	local worshipTable = loadedOrCreatedEmotesTable["OPTIONAL_IDLE_TABLE"]["ADD_WORSHIP_TABLE"]
 	local numOfWorships = #worshipTable
 	for i = 1, numOfWorships, 1 do
 		defaultIdleTable["City"][numOfEmotes + i] = worshipTable[i]
@@ -91,11 +211,7 @@ end
 
 local function AddWorshipToZone()
 	local numOfEmotes = #defaultIdleTable["Zone"]
-	local worshipTable = {
-		[1] = 104,
-		[2] = 52,
-		[3] = 171,
-	}
+	local worshipTable = loadedOrCreatedEmotesTable["OPTIONAL_IDLE_TABLE"]["ADD_WORSHIP_TABLE"]
 	local numOfWorships = #worshipTable
 	for i = 1, numOfWorships, 1 do
 		defaultIdleTable["Zone"][numOfEmotes + i] = worshipTable[i]
@@ -105,11 +221,7 @@ end
 
 local function AddExercisesToZone()
 	local numOfEmotes = #defaultIdleTable["Zone"]
-	local exerciseTable = {
-		[1] = 84,
-		[2] = 85,
-		[3] = 113,
-	}
+	local exerciseTable = loadedOrCreatedEmotesTable["OPTIONAL_IDLE_TABLE"]["ADD_EXERCISE_TABLE"]
 	local numOfExercises = #exerciseTable
 	for i = 1, numOfExercises, 1 do
 		defaultIdleTable["Zone"][numOfEmotes + i] = exerciseTable[i]
@@ -119,19 +231,7 @@ end
 
 local function AddDancesToCities()
 	local numOfEmotes = #defaultIdleTable["City"]
-	local danceTable = {
-		[1] = 72,
-		[2] = 189,
-		[3] = 181,
-		[4] = 182,
-		[5] = 183,
-		[6] = 180,
-		[7] = 206,
-		[8] = 185,
-		[9] = 186,
-		[10] = 187,
-		[11] = 188,
-	}
+	local danceTable = loadedOrCreatedEmotesTable["OPTIONAL_IDLE_TABLE"]["ADD_DANCE_TABLE"]
 	local numOfDances = #danceTable
 	for i = 1, numOfDances, 1 do
 		defaultIdleTable["City"][numOfEmotes + i] = danceTable[i]
@@ -141,11 +241,7 @@ end
 
 local function AddInstrumentsToCities()
 	local numOfEmotes = #defaultIdleTable["City"]
-	local instrumentsTable = {
-		[1] = 5,
-		[2] = 6,
-		[3] = 7,
-	}
+	local instrumentsTable = loadedOrCreatedEmotesTable["OPTIONAL_IDLE_TABLE"]["ADD_INSTRUMENT_TABLE"]
 	local numOfInstruments = #instrumentsTable
 	for i = 1, numOfInstruments, 1 do
 		defaultIdleTable["City"][numOfEmotes + i] = instrumentsTable[i]
@@ -154,61 +250,7 @@ end
 
 
 function IdleEmotes.CreateDefaultIdleEmotesTable()
-	defaultIdleTable = {
-		["Zone"] = {
-			[1] = 99,
-			[2] = 119,
-			[3] = 120,
-			[4] = 121,
-			[5] = 123,
-			[6] = 102,
-			[7] = 200,
-			[8] = 15,
-			[9] = 10,
-			[10] = 38,
-			[11] = 190,
-		},
-		["City"] = {
-			[1] = 201,
-			[2] = 107,
-			[3] = 194,
-			[4] = 8,
-			[5] = 173,
-			[6] = 100,
-			[7] = 38,
-			[8] = 168,
-			[9] = 9,
-			[10] = 190,
-			[11] = 198,
-		},
-		["Dungeon"] = {
-			[1] = 194,
-			[2] = 1,
-			[3] = 153,
-			[4] = 1,
-			[5] = 1,
-			[6] = 122,
-			[7] = 101,
-		},
-		["Housing"] = {
-			[1] = 10,
-			[2] = 10,
-			[3] = 99,
-			[4] = 119,
-			[5] = 191,
-			[6] = 191,
-			[7] = 192,
-			[8] = 192,
-			[9] = 9,
-			[10] = 177,
-			[11] = 207,
-			[12] = 208,
-			[13] = 125,
-			[14] = 125,
-			[15] = 118,
-			[16] = 116,
-		}
-	}
+	defaultIdleTable = loadedOrCreatedEmotesTable["DEFAULT_IDLE_TABLE"]
 
 	if LorePlay.db.canPlayInstrumentsInCities then
 		AddInstrumentsToCities()
@@ -294,7 +336,7 @@ end
 function IdleEmotes.IsCharacterIdle()
 	if IsMounted() or isFastTraveling or IsUnitSwimming("player") or IsBlockActive() or not ArePlayerWeaponsSheathed() or IsUnitDeadOrReincarnating("player") then return end
 	if not isActiveEmoting then
-		local didMove = IdleEmotes.UpdateIfMoved() 
+		local didMove = IdleEmotes.UpdateIfMoved()
 		if not didMove then
 			if isPlayerStealthed == nil then
 				IdleEmotes.UpdateStealthState(EVENT_STEALTH_STATE_CHANGED, "player", GetUnitStealthState("player"))
@@ -312,8 +354,8 @@ end
 
 
 local housingEditorScenes = {
-	housingEditorHud = true, 
-	housingEditorHudUI = true, 
+	housingEditorHud = true,
+	housingEditorHudUI = true,
 }
 function IdleEmotes.IsBlacklistedScene()
 	local currentScene = SCENE_MANAGER:GetCurrentScene()
@@ -488,9 +530,28 @@ function IdleEmotes.RegisterIdleEvents()
 	EVENT_MANAGER:RegisterForUpdate("IdleEmotesMoveTimer", 10000, IdleEmotes.UpdateIfMoved)
 end
 
+function IdleEmotes.ExportIdleEmotes()
+	local exportable = LorePlay.LPUtilities.DeepCopy(loadedOrCreatedEmotesTable) or {}
+
+	for tableKey, tableValue in pairs(exportable) do
+		for categoryKey, emoteTable in pairs(tableValue) do
+			if emoteTable ~= nil and type(emoteTable) == "table" then
+				for i, emote in pairs(emoteTable) do
+					local slashName = GetEmoteSlashNameByIndex(emote)
+					exportable[tableKey][categoryKey][i] = slashName
+				end
+			end
+		end
+	end
+
+	return exportable
+end
 
 function IdleEmotes.InitializeIdle()
 	if not LorePlay.db.isIdleEmotesOn then return end
+
+	IdleEmotes.ReloadIdleEmotes()
+
 	IdleEmotes.CreateDefaultIdleEmotesTable()
 	IdleEmotes.CreateEventIdleEmotesTable()
 	currentPlayerX, currentPlayerY = GetMapPlayerPosition("player")

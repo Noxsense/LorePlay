@@ -57,6 +57,7 @@ local defaultEmotesForDolmens
 local defaultEmotesForHousing
 local eventTTLEmotes
 local eventLatchedEmotes
+local loadedOrCreatedEmotesTable
 local reticleEmotesTable
 local lastEventTimeStamp
 local existsPreviousEvent
@@ -313,8 +314,8 @@ local poiDatabase = {
 local blacklistedDungeonDatabase = {
 		-- NOTE : by Calamath
 		--	 Basically, this table should not be used.
-		--	 IsUnitInDungeon API returns TRUE in the dungeons, but zones registered in this table will be treated as FALSE. 
-		--   In other words, register only the zone ID of the dungeon that you absolutely want to recognize as a region area (adventure zone).	
+		--	 IsUnitInDungeon API returns TRUE in the dungeons, but zones registered in this table will be treated as FALSE.
+		--   In other words, register only the zone ID of the dungeon that you absolutely want to recognize as a region area (adventure zone).
 	[1048] = true, 			-- Alinor Royal Palace (in Summerset)
 	[1191] = true, 			-- Blackreach Mzark Cavern (in Eastmarch)
 	[1205] = true, 			-- Grayhome (in Rivenspire)
@@ -371,6 +372,351 @@ local titleIdToFemaleTitleName = {	------------------ titleId to female titleNam
 }
 local TitleNameToTitleId = {}
 -- ---------
+
+local function fromSimpleFormat(listedEmoteTables)
+	local emotesTable = {}
+
+	if listedEmoteTables == nil or type(listedEmoteTables) ~= "table" then
+		return {}
+	end
+
+	-- load emote value from list.
+	local function enumerate(list)
+		local emotes = {}
+		local allEmotesTableExists = LPEmotesTable.allEmotesTable ~= nil
+		local fallBackEmote = 91 -- /stretch
+		for i, emote in ipairs(list) do
+			emotes[i] = type(emote) == "string"
+				and (allEmotesTableExists and LPEmotesTable.allEmotesTable[emote]["index"] or fallbackEmote)
+				or emote
+		end
+		return emotes
+	end
+
+	for i, categoryTable in ipairs(listedEmoteTables) do
+		local key = categoryTable["Key"] or categoryTable["EventName"] or i
+
+		if categoryTable["SubEntries"] ~= nil then
+			emotesTable[key] = {}
+			for k1, subEntry in pairs(categoryTable["SubEntries"]) do
+				emotesTable[key][k1] = {
+					["Emotes"] =  enumerate(subEntry["Emotes"]),
+				}
+			end
+		else
+			emotesTable[key] = categoryTable
+			emotesTable[key]["Emotes"] = enumerate(categoryTable["Emotes"] or {})
+		end
+	end
+	return emotesTable
+end
+
+function SmartEmotes.RecreatDefaulSmartEmotes()
+	local fromCode = {}
+
+	local createdEmotesTable = {
+		["EVENT_TTL_EMOTES"] =
+		{
+			{
+				["EventName"] = EVENT_CAPTURE_FLAG_STATE_CHANGED_LOST_FLAG,
+				["Duration"] = 5000,
+				["Emotes"] = {115, 62, 22, 148, 134}
+			},
+			{
+				["EventName"] = EVENT_KILLED_BOSS,
+				["Duration"] = 30000,
+				["Emotes"] = { 199, 161, 119, 178, 25, 151, 145, 62, 13, 22, 97, 8 },
+			},
+			{
+				["EventName"] = EVENT_KILLED_CREATURE,
+				["Duration"] = 30000,
+				["Emotes"] = { },
+			},
+			{
+				["EventName"] = EVENT_STARTUP,
+				["Duration"] = 60000,
+				["Emotes"] = { 91, 96, },
+			},
+			{
+				["EventName"] = EVENT_LOOT_RECEIVED_BETTER,
+				["Duration"] = 30000,
+				["Emotes"] = { 130, 25, 25, 39, 14, 150, 54, 163, },
+			},
+			{
+				["EventName"] = EVENT_LOOT_RECEIVED_RUNE_TA,
+				["Duration"] = 20000,
+				["Emotes"] = { 23, 29, 69, 73, 33, 134, 40, 133, },
+			},
+			{
+				["EventName"] = EVENT_LOOT_RECEIVED_RUNE_REKUTA,
+				["Duration"] = 20000,
+				["Emotes"] = { 36,54,42,81,129,26, },
+			},
+			{
+				["EventName"] = EVENT_LOOT_RECEIVED_RUNE_KUTA,
+				["Duration"] = 30000,
+				["Emotes"] = { 26, 67, 13, 66, 25, 162, 72, 149, },
+			},
+			{
+				["EventName"] = EVENT_LOOT_RECEIVED_UNIQUE,
+				["Duration"] = 30000,
+				["Emotes"] = {},
+			},
+			{
+				["EventName"] = EVENT_PLEDGE_OF_MARA_RESULT_PLEDGED,
+				["Duration"] = 120000,
+				["Emotes"] = { 20,21,130, },
+			},
+			{
+				["EventName"] = EVENT_LOOT_RECEIVED_RARE_RECIPE_OR_MATERIAL,
+				["Duration"] = 30000,
+				["Emotes"] = { 26, 67, 13, 66, 25, 162, 72, 149, },
+			},
+			{
+				["EventName"]  = EVENT_LOCKPICK_SUCCESS_EASY,
+				["Duration"] = 30000,
+				["Emotes"] = { 129, 42, 36, 78, 41, },
+			},
+			{
+				["EventName"] = EVENT_LOCKPICK_SUCCESS_MEDIUM,
+				["Duration"] = 30000,
+				["Emotes"] = { 129, 36, 36, 91, 95, 95, },
+			},
+			{
+				["EventName"] = EVENT_LOCKPICK_SUCCESS_HARD,
+				["Duration"] = 30000,
+				["Emotes"] = { 95, 25, 25, 25, 82, 149, 36, 26, 66, },
+			},
+			{
+				["EventName"] = EVENT_PLAYER_COMBAT_STATE_INCOMBAT,
+				["Duration"] = 20000,
+				["Emotes"] = { 27, 159, 163, 106, 158, 158, },
+			},
+			{
+				["EventName"] = EVENT_PLAYER_COMBAT_STATE_NOT_INCOMBAT_FLED,
+				["Duration"] = 15000,
+				["Emotes"] = { 95, 95, 74, 73, 93, 109, 78, },
+			},
+			{
+				["EventName"] = EVENT_PLAYER_COMBAT_STATE_NOT_INCOMBAT,
+				["Duration"] = 15000,
+				["Emotes"] = { 78, 161, 39, 178, 52, 119, 199, },
+			},
+			{
+				["EventName"] = EVENT_BANKED_MONEY_UPDATE_DOUBLE,
+				["Duration"] = 30000,
+				["Emotes"] = { 25, 193, 78, 82, 97, },
+			},
+			{
+				["EventName"] = EVENT_BANKED_MONEY_UPDATE_GROWTH,
+				["Duration"] = 30000,
+				["Emotes"] = { 193, 193, 173, 198, 54, },
+			},
+			{
+				["EventName"] = 131109, -- TODO 2024-11-23 where does this come from.
+				["Duration"] = 20000,
+				["Emotes"] = { 71, 115, 148, 12, 167, 133, 80, 172, },
+			},
+			{
+				["EventName"] = 131498,
+				["Duration"] = 30000,
+				["Emotes"] = { 10, 125, 211, },
+			},
+			{
+				["EventName"] = 131403,
+				["Duration"] = 15000,
+				["Emotes"] = { 148, 152, 169, 54, 81, 155, 32, 62, 44, 44, 44, 151, },
+			},
+			{
+				["EventName"] = 131442,
+				["Duration"] = 30000,
+				["Emotes"] = { 164, 104, 52, 98, },
+			},
+			{
+				["EventName"] = 131411,
+				["Duration"] = 15000,
+				["Emotes"] = { 130, 150, },
+			},
+			{
+				["EventName"] = 131224,
+				["Duration"] = 20000,
+				["Emotes"] = { 91, 110, 80, },
+			},
+			{
+				["EventName"] = 131110,
+				["Duration"] = 15000,
+				["Emotes"] = { 148, 133, 80, 33, },
+			},
+			{
+				["EventName"] = 131130,
+				["Duration"] = 120000,
+				["Emotes"] = { 52, 8, 82, 164, 25, 129, 97, 97, 97, },
+			},
+			{
+				["EventName"] = 131542,
+				["Duration"] = 20000,
+				["Emotes"] = { 32, 32, 154, 12, 166, 109, 109, },
+			},
+			{
+				["EventName"] = 131391,
+				["Duration"] = 30000,
+				["Emotes"] = { 64, },
+			},
+		},
+		["DEFAULT_EVENTS"] =
+		{
+			{
+				["Key"] = "DEFAULT_EMOTES_BY_CITY_KEYS",
+				["SubEntries"] = {
+					["Vulkhel Guard"] = {
+						["Emotes"] = { 8, 173, 8, 38, 190, 209, 11, 121, 52, 9, 91, 181, 5, 6, 7, 79, },
+					},
+					["EP"] = {
+						["Emotes"] = { 173, 8, 52, 7, 202, 168, 121, 184, 5, 6, 72, 72, 187, 182, 100, 8, 79, },
+					},
+					["Windhelm"] = {
+						["Emotes"] = { 8, 139, 162, 168, 5, 79, 208, 64, 173, 52, 187, 6, 7, 8, },
+					},
+					["Riften"] = {
+						["Emotes"] = { 8, 139, 162, 168, 5, 79, 208, 64, 52, 187, 6, 7, 8, },
+					},
+					["Wayrest"] = {
+						["Emotes"] = { 25, 52, 200, 11, 110, 122, 91, 38, 9, 91, 95, 95, 202, 202, 180, 5, 6, 7, 8, 79, },
+					},
+					["DC"] = {
+						["Emotes"] = { 25, 52, 200, 11, 6, 122, 91, 38, 9, 72, 95, 7, 180, 5, 188, 189, 8, 79, },
+					},
+					["Elden Root"] = {
+						["Emotes"] = { 8, 202, 202, 202, 202, 176, 173, 201, 99, 8, 52, 183, 5, 6, 7, 79, },
+					},
+					["AD"] = {
+						["Emotes"] = { 176, 173, 201, 99, 8, 52, 183, 5, 6, 7, 72, 72, 181, 186, 52, 8, 79, },
+					},
+					["Other"] = {
+						["Emotes"] = { 176, 8, 72, 72, 52, 5, 6, 7, 210, 100, 8, 79, },
+					},
+					["Mournhold"] = {
+						["Emotes"] = { 173, 8, 52, 52, 202, 202, 121, 184, 5, 6, 7, 79, 8, },
+					},
+				},
+			},
+			{
+				["Key"] = "DEFAULT_EMOTES_BY_REGION_KEYS",
+				["SubEntries"] = {
+					["ad2"] = {
+						["Emotes"] = { 209, 119, 102, 200, 201, 99, 121, 38, 52, 104, 91, 209, 123, 104, },
+					},
+					["ep2"] = {
+						["Emotes"] = { 110, 52, 200, 168, 177, 120, 91, 9, },
+					},
+					["dc2"] = {
+						["Emotes"] = { 52, 119, 200, 99, 121, 38, 9, 91, 123, 104, },
+					},
+					["ep3"] = {
+						["Emotes"] = { 52, 200, 168, 177, 201, 38, 9, 91, 104, },
+					},
+					["ip"] = {
+						["Emotes"] = { 52, 34, 148, 110, 38, 9, 91, },
+					},
+					["ad1"] = {
+						["Emotes"] = { 190, 190, 209, 173, 173, 11, 121, 38, 52, 9, 91, 209, },
+					},
+					["other"] = {
+						["Emotes"] = { 9, 202, 54, 83, 91, 190, 40, 110, 176, 177, 173, 200, 138, 99, 121, 52, },
+					},
+					["ep1"] = {
+						["Emotes"] = { 8, 168, 64, 213, 52, 38, 104, 64, 213, 168, },
+					},
+					["ch"] = {
+						["Emotes"] = { 63, 27, 122, 52, 102, 104, },
+					},
+					["dc1"] = {
+						["Emotes"] = { 52, 200, 11, 110, 122, 91, 38, 9, 91, 95, 95, 110, },
+					},
+				},
+			},
+			{
+				["Key"] = "DEFAULT_EMOTES_FOR_HOUSING",
+				["Emotes"] = { 91, 10, 138, 191, 192, 125, 113, 100, },
+			},
+			{
+				["Key"] = "DEFAULT_EMOTES_FOR_DUNGEONS",
+				["Emotes"] = { 63, 1, 101, 102, 52, 22, 170, 1, 22, },
+			},
+			{
+				["Key"] = "DEFAULT_EMOTES_FOR_DOLMENS",
+				["Emotes"] = { 63, 110, 101, 102, 52, 22, 170, 63, 22, 110, 151, },
+			},
+		},
+		["RETICLE_EMOTES"] = {
+			{
+				["EventName"] = EVENT_RETICLE_TARGET_CHANGED_TO_FRIEND,
+				["Emotes"] = { 70, 72, 8, 137, 94, }
+			},
+			{
+				["EventName"] = EVENT_RETICLE_TARGET_CHANGED_TO_SPOUSE,
+				["Emotes"] = { 70, 72, 8, 137, 21, 146, 39, 212, 165, 21, }
+			},
+			{
+				["EventName"] = EVENT_RETICLE_TARGET_CHANGED_TO_EPIC,
+				["Emotes"] = { 142, 67, 212, 24, 174, 142, }
+			},
+			{
+				["EventName"] = EVENT_RETICLE_TARGET_CHANGED_TO_EPIC_SAME,
+				["Emotes"] = { 56, 57, 58, }
+			},
+			{
+				["EventName"] = EVENT_RETICLE_TARGET_CHANGED_TO_NORMAL,
+				["Emotes"] = { 56, 136, 137, 17, }
+			},
+		},
+		["LATCHED_EMOTES"] = {
+			{
+				["EventName"] = EVENT_POWER_UPDATE_STAMINA,
+				["Emotes"] = { 114, },
+			},
+		},
+	}
+	for key, values in pairs(createdEmotesTable) do
+		fromCode[key] = fromSimpleFormat(values)
+	end
+	return fromCode
+end
+
+function SmartEmotes.LoadSmartEmotesFromSavedVariables()
+	local fromSaveedVariables = {}
+	local savedVariables
+		= LorePlaySavedCustomSmartEmotes and LorePlay.LPUtilities.DeepCopy(LorePlaySavedCustomSmartEmotes["EMOTES"] or {})
+		or {}
+
+	for key, values in pairs(savedVariables) do
+		fromSaveedVariables[key] = fromSimpleFormat(values)
+	end
+	return fromSaveedVariables
+end
+
+function SmartEmotes.ReloadSmartEmotes()
+	loadedOrCreatedEmotesTable = {}
+
+	-- initial Smart Emote Setup by Code.
+	local fromCodedEmotesTables
+	fromCodedEmotesTables = SmartEmotes.RecreatDefaulSmartEmotes()
+
+	-- loaded Smart Emote Setup from SavedVariables
+	local fromSavedVariables
+	fromSavedVariables = SmartEmotes.LoadSmartEmotesFromSavedVariables()
+
+	-- Merge Together, keep From Configuration on Top.
+	loadedOrCreatedEmotesTable = LorePlay.LPUtilities.DeepMergeTables(
+		fromCodedEmotesTables,
+		fromSavedVariables)
+
+	loadedOrCreatedEmotesTable["Metadata"] = {
+		["Loaded"] = os.date("%FT%T%z")
+	}
+
+	return loadedOrCreatedEmotesTable
+end
 
 local function GetRegionKeyByZoneId(zoneId)
 	if zoneIdDatabase[zoneId] then return zoneIdDatabase[zoneId].emoteKey end
@@ -433,7 +779,7 @@ end
 local function UpdateEmoteFromReticle()
 	local unitTitle = GetUnitTitle("reticleover")
 	local unitTitleId
-	if unitTitle then 
+	if unitTitle then
 		unitTitleId = TitleNameToTitleId[unitTitle]
 	end
 
@@ -451,10 +797,10 @@ local function UpdateEmoteFromReticle()
 		end
 		if unitTitleId == playerTitleId then
 			emoteFromReticle = reticleEmotesTable[EVENT_RETICLE_TARGET_CHANGED_TO_EPIC_SAME]
-		else 
+		else
 			emoteFromReticle = reticleEmotesTable[EVENT_RETICLE_TARGET_CHANGED_TO_EPIC]
 		end
-	else 
+	else
 		emoteFromReticle = reticleEmotesTable[EVENT_RETICLE_TARGET_CHANGED_TO_NORMAL]
 	end
 end
@@ -484,7 +830,7 @@ end
 function SmartEmotes.PerformSmartEmote()
 	if IsPlayerMoving() or isMounted then return end
 	local smartEmoteIndex, wasReticle, wasTTL
-	if IsUnitPlayer("reticleover") and 
+	if IsUnitPlayer("reticleover") and
 	not SmartEmotes.DoesEmoteFromTTLEqualEvent(EVENT_TRADE_SUCCEEDED, EVENT_TRADE_CANCELED) then
 		UpdateEmoteFromReticle()
 		smartEmoteIndex = GetNonRepeatEmoteIndex(emoteFromReticle)
@@ -555,7 +901,7 @@ function SmartEmotes.UpdateTTLEmoteTable(eventCode)
 	if eventCode == nil then return end
 	if eventTTLEmotes[eventCode] == nil then return end
 	lastEventTimeStamp = GetTimeStamp()
-	if not eventTTLEmotes["isEnabled"] then 
+	if not eventTTLEmotes["isEnabled"] then
 		eventTTLEmotes["isEnabled"] = true
 	end
 	emoteFromTTL = eventTTLEmotes[eventCode]
@@ -570,411 +916,29 @@ end
 
 function SmartEmotes.CreateEmotesByRegionTable()
 --	SmartEmotes.defaultEmotesByRegion = {
-	defaultEmotesByRegionKeys = {
-		["ad1"] = { --Summerset
-			["Emotes"] = {
-				[1] = 190,
-				[2] = 190,
-				[3] = 209,
-				[4] = 173,
-				[5] = 173,
-				[6] = 11,
-				[7] = 121,
-				[8] = 38,
-				[9] = 52,
-				[10] = 9,
-				[11] = 91,
-				[12] = 209,
-			}
-		},
-		["ad2"] = { --Valenwood
-			["Emotes"] = {
-				[1] = 209,
-				[2] = 119,
-				[3] = 102,
-				[4] = 200,
-				[5] = 201,
-				[6] = 99,
-				[7] = 121,
-				[8] = 38,
-				[9] = 52,
-				[10] = 104,
-				[11] = 91,
-				[12] = 209,
-				[13] = 123,
-				[14] = 104,
-			}
-		},
-		["ep1"] = { --Skyrim
-			["Emotes"] = {
-				[1] = 8,
-				[2] = 168,
-				[3] = 64,
-				[4] = 213,
-				[5] = 52,
-				[6] = 38,
-				[7] = 104,
-				[8] = 64,
-				[9] = 213,
-				[10] = 168,
-			}
-		},
-		["ep2"] = { --Morrowind
-			["Emotes"] = {
-				[1] = 52,
-				[2] = 200,
-				[3] = 168,
-				[4] = 177,
-				[5] = 120,
-				[6] = 91,
-				[7] = 9,
-				[8] = 110,
-			}
-		},
-		["ep3"] = { --Shadowfen
-			["Emotes"] = {
-				[1] = 52,
-				[2] = 200,
-				[3] = 168,
-				[4] = 177,
-				[5] = 201,
-				[6] = 38,
-				[7] = 9,
-				[8] = 91,
-				[9] = 104,
-			}
-		},
-		["dc1"] = { --deserty
-			["Emotes"] = {
-				[1] = 52,
-				[2] = 200,
-				[3] = 11,
-				[4] = 110,
-				[5] = 122,
-				[6] = 91,
-				[7] = 38,
-				[8] = 9,
-				[9] = 91,
-				[10] = 95,
-				[11] = 95,
-				[12] = 110,
-			}
-		},
-		["dc2"] = { --foresty
-			["Emotes"] = {
-				[1] = 52,
-				[2] = 119,
-				[3] = 200,
-				[4] = 99,
-				[5] = 121,
-				[6] = 38,
-				[7] = 9,
-				[8] = 91,
-				[9] = 123,
-				[10] = 104,
-			}
-		},
-		["ch"] = { --Coldharbour
-			["Emotes"] = {
-				[1] = 63,
-				[2] = 27,
-				[3] = 122,
-				[4] = 52,
-				[5] = 102,
-				[6] = 104,
-			}
-		},
-		["ip"] = { --imperial
-			["Emotes"] = {
-				[1] = 52,
-				[2] = 34,
-				[3] = 148,
-				[4] = 110,
-				[5] = 38,
-				[6] = 9,
-				[7] = 91,
-			}
-		},
-		["other"] = { --other
-			["Emotes"] = {
-				[1] = 202,
-				[2] = 54,
-				[3] = 83,
-				[4] = 91,
-				[5] = 190,
-				[6] = 40,
-				[7] = 110,
-				[8] = 176,
-				[9] = 177,
-				[10] = 173,
-				[11] = 200,
-				[12] = 138,
-				[13] = 99,
-				[14] = 121,
-				[15] = 52,
-				[16] = 9,
-			}
-		}
-	}
+	defaultEmotesByRegionKeys = loadedOrCreatedEmotesTable["DEFAULT_EVENTS"]["DEFAULT_EMOTES_BY_REGION_KEYS"]
 end
 
 
 function SmartEmotes.CreateEmotesByCityTable()
-	defaultEmotesByCityKeys = {
-		-- NOTE : by Calamath
-		-- these unique emote tables with special city name dentifiers were imported from table languageTable.defaultEmotesByCity.
-		["Elden Root"] = {
-			["Emotes"] = {
-				[1] = 202,
-				[2] = 202,
-				[3] = 202,
-				[4] = 202,
-				[5] = 176,
-				[6] = 173,
-				[7] = 201,
-				[8] = 99,
-				[9] = 8,
-				[10] = 52,
-				[11] = 183,
-				[12] = 5,
-				[13] = 6,
-				[14] = 7,
-				[15] = 79,
-				[16] = 8,
-			}
-		},
-		["Vulkhel Guard"] = { 
-			["Emotes"] = {
-				[1] = 173,
-				[2] = 8,
-				[3] = 38,
-				[4] = 190,
-				[5] = 209,
-				[6] = 11,
-				[7] = 121,
-				[8] = 52,
-				[9] = 9,
-				[10] = 91,
-				[11] = 181,
-				[12] = 5,
-				[13] = 6,
-				[14] = 7,
-				[15] = 79,
-				[16] = 8
-			}
-		},
-		["Mournhold"] = {
-			["Emotes"] = {
-				[1] = 173,
-				[2] = 8,
-				[3] = 52,
-				[4] = 52,
-				[5] = 202,
-				[6] = 202,
-				[7] = 121,
-				[8] = 184,
-				[9] = 5,
-				[10] = 6,
-				[11] = 7,
-				[12] = 79,
-				[13] = 8,
-			}
-		},
-		["Windhelm"] = { 
-			["Emotes"] = {
-				[1] = 8,
-				[2] = 139,
-				[3] = 162,
-				[4] = 168,
-				[5] = 5,
-				[6] = 79,
-				[7] = 208,
-				[8] = 64,
-				[9] = 173,
-				[10] = 52,
-				[11] = 187,
-				[12] = 6,
-				[13] = 7,
-				[14] = 8,
-			}
-		},
-		["Riften"] = { 
-			["Emotes"] = {
-				[1] = 8,
-				[2] = 139,
-				[3] = 162,
-				[4] = 168,
-				[5] = 5,
-				[6] = 79,
-				[7] = 208,
-				[8] = 64,
-				[10] = 52,
-				[11] = 187,
-				[12] = 6,
-				[13] = 7,
-				[14] = 8,
-			}
-		},
-		["Wayrest"] = {
-			["Emotes"] = {
-				[1] = 25,
-				[2] = 52,
-				[3] = 200,
-				[4] = 11,
-				[5] = 110,
-				[6] = 122,
-				[7] = 91,
-				[8] = 38,
-				[9] = 9,
-				[10] = 91,
-				[11] = 95,
-				[12] = 95,
-				[13] = 202,
-				[14] = 202,
-				[15] = 180,
-				[16] = 5,
-				[17] = 6,
-				[18] = 7,
-				[19] = 8,
-				[20] = 79,
-			}
-		},
-		-- NOTE : by Calamath
-		-- these emote tables with region related identifiers are commonly used for cities not defined above.
-		-- they were imported from local table defaultCityToRegionEmotes defined in the function 'languageTable.CreateEmotesByCityTable()'
-		["AD"] = {
-			["Emotes"] = {
-			[1] = 176,
-			[2] = 173,
-			[3] = 201,
-			[4] = 99,
-			[5] = 8,
-			[6] = 52,
-			[7] = 183,
-			[8] = 5,
-			[9] = 6,
-			[10] = 7,
-			[11] = 72,
-			[12] = 72,
-			[13] = 181,
-			[14] = 186,
-			[15] = 52,
-			[16] = 8,
-			[17] = 79,
-			}
-		},
-		["EP"] = {
-			["Emotes"] = {
-				[1] = 173,
-				[2] = 8,
-				[3] = 52,
-				[4] = 7,
-				[5] = 202,
-				[6] = 168,
-				[7] = 121,
-				[8] = 184,
-				[9] = 5,
-				[10] = 6,
-				[11] = 72,
-				[12] = 72,
-				[13] = 187,
-				[14] = 182,
-				[15] = 100,
-				[16] = 8,
-				[17] = 79,
-			}
-		},
-		["DC"] = {
-			["Emotes"] = {
-				[1] = 25,
-				[2] = 52,
-				[3] = 200,
-				[4] = 11,
-				[5] = 6,
-				[6] = 122,
-				[7] = 91,
-				[8] = 38,
-				[9] = 9,
-				[10] = 72,
-				[11] = 95,
-				[12] = 7,
-				[13] = 180,
-				[14] = 5,
-				[15] = 188,
-				[16] = 189,
-				[17] = 8,
-				[18] = 79,
-			},
-		},
-		["Other"] = {
-			["Emotes"] = {
-				[1] = 176,
-				[2] = 8,
-				[3] = 72,
-				[4] = 72,
-				[5] = 52,
-				[6] = 5,
-				[7] = 6,
-				[8] = 7,
-				[9] = 210,
-				[10] = 100,
-				[11] = 8,
-				[12] = 79,
-			},
-		},
-	}
+	-- NOTE : by Calamath
+	-- these unique emote tables with special city name dentifiers were imported from table languageTable.defaultEmotesByCity.
+	defaultEmotesByCityKeys = loadedOrCreatedEmotesTable["DEFAULT_EVENTS"]["DEFAULT_EMOTES_BY_CITY_KEYS"]
 end
 
 
 function SmartEmotes.CreateDungeonTable()
-	defaultEmotesForDungeons = {
-		["Emotes"] = {
-			[1] = 63,
-			[2] = 1,
-			[3] = 101,
-			[4] = 102,
-			[5] = 52,
-			[6] = 22,
-			[7] = 170,
-			[8] = 1,
-			[9] = 22,
-		}
-	}
+	defaultEmotesForDungeons = loadedOrCreatedEmotesTable["DEFAULT_EVENTS"]["DEFAULT_EMOTES_FOR_DUNGEONS"]
 end
 
 
 function SmartEmotes.CreateDolmenTable()
-	defaultEmotesForDolmens = {
-		["Emotes"] = {
-			[1] = 63,
-			[2] = 110,
-			[3] = 101,
-			[4] = 102,
-			[5] = 52,
-			[6] = 22,
-			[7] = 170,
-			[8] = 63,
-			[9] = 22,
-			[10] = 110,
-			[11] = 151,
-		}
-	}
+	defaultEmotesForDolmens =  loadedOrCreatedEmotesTable["DEFAULT_EVENTS"]["DEFAULT_EMOTES_FOR_DOLMENS"]
 end
 
 
 function SmartEmotes.CreateHousingTable()
-	defaultEmotesForHousing = {
-		["Emotes"] = {
-			[1] = 10,
-			[2] = 138,
-			[3] = 191,
-			[4] = 192,
-			[5] = 125,
-			[6] = 113,
-			[7] = 100,
-			[8] = 91,
-		}
-	}
+	defaultEmotesForHousing = loadedOrCreatedEmotesTable["DEFAULT_EVENTS"]["DEFAULT_EMOTES_FOR_HOUSING"]
 end
 
 
@@ -988,416 +952,30 @@ end
 
 
 function SmartEmotes.CreateReticleEmoteTable()
-	reticleEmotesTable = {
-		[EVENT_RETICLE_TARGET_CHANGED_TO_FRIEND] = {
-			["EventName"] = EVENT_RETICLE_TARGET_CHANGED_TO_FRIEND,
-			["Emotes"] = {
-				[1] = 70,
-				[2] = 72,
-				[3] = 8,
-				[4] = 137,
-				[5] = 94,
-			}
-		},
-		[EVENT_RETICLE_TARGET_CHANGED_TO_SPOUSE] = {
-			["EventName"] = EVENT_RETICLE_TARGET_CHANGED_TO_SPOUSE,
-			["Emotes"] = {
-				[1] = 70,
-				[2] = 72,
-				[3] = 8,
-				[4] = 137,
-				[5] = 21,
-				[6] = 146,
-				[7] = 39,
-				[8] = 212,
-				[9] = 165,
-				[10] = 21,
-			}
-		},
-		[EVENT_RETICLE_TARGET_CHANGED_TO_EPIC] = {
-			["EventName"] = EVENT_RETICLE_TARGET_CHANGED_TO_EPIC,
-			["Emotes"] = {
-				[1] = 142,
-				[2] = 67,
-				[3] = 212,
-				[4] = 24,
-				[5] = 174,
-				[6] = 142,
-			}
-		},
-		[EVENT_RETICLE_TARGET_CHANGED_TO_EPIC_SAME] = {
-			["EventName"] = EVENT_RETICLE_TARGET_CHANGED_TO_EPIC_SAME,
-			["Emotes"] = {
-				[2] = 56,
-				[3] = 57,
-				[4] = 58,
-			}
-		},
-		[EVENT_RETICLE_TARGET_CHANGED_TO_NORMAL] = {
-			["EventName"] = EVENT_RETICLE_TARGET_CHANGED_TO_NORMAL,
-			["Emotes"] = {
-				[1] = 56,
-				[2] = 136,
-				[3] = 137,
-				[4] = 17,
-			}
-		}
-	}
+	reticleEmotesTable = loadedOrCreatedEmotesTable["RETICLE_EMOTES"]
 end
 
 
 function SmartEmotes.CreateLatchedEmoteEventTable()
-	eventLatchedEmotes = {
-		["isEnabled"] = false,
+	eventLatchedEmotes = loadedOrCreatedEmotesTable["LATCHED_EMOTES"]
 
-		[EVENT_POWER_UPDATE_STAMINA] = {
-			["EventName"] = EVENT_POWER_UPDATE_STAMINA,
-			["Emotes"] = {
-				[1] = 114,
-			},
-			["Switch"] = function() 
-				local currentStam, _, effectiveMaxStam = GetUnitPower("player", COMBAT_MECHANIC_FLAGS_STAMINA)
-				if currentStam < effectiveMaxStam*(.60) then
-					return true
-				end
-			end
-		}
-	}
+	eventLatchedEmotes["isEnabled"] = false -- initially disenabled.
+
+	-- refine.
+	eventLatchedEmotes[EVENT_POWER_UPDATE_STAMINA]["Switch"] = function()
+		local currentStam, _, effectiveMaxStam = GetUnitPower("player", COMBAT_MECHANIC_FLAGS_STAMINA)
+		if currentStam < effectiveMaxStam*(.60) then
+			return true
+		end
+	end
 end
 
 
 function SmartEmotes.CreateTTLEmoteEventTable()
 	-- Duration in miliseconds that the emote should be playable
 	local defaultDuration = 30000
-	eventTTLEmotes = {
-		["isEnabled"] = false,
-		[EVENT_LEVEL_UPDATE] = {
-			["EventName"] = EVENT_LEVEL_UPDATE,
-			["Emotes"] = {
-				[1] = 52,
-				[2] = 8,
-				[3] = 82,
-				[4] = 164,
-				[5] = 25,
-				[6] = 129,
-				[7] = 97,
-				[8] = 97,
-				[9] = 97,
-			},
-			["Duration"] = defaultDuration*4
-		},
-		[EVENT_PLAYER_NOT_SWIMMING] = {
-			["EventName"] = EVENT_PLAYER_NOT_SWIMMING,
-			["Emotes"] = {
-				[1] = 64
-			},
-			["Duration"] = defaultDuration
-		},
-		[EVENT_STARTUP] = {
-			["EventName"] = EVENT_STARTUP,
-			["Emotes"] = {
-				[1] = 96,
-				[2] = 91
-			},
-			["Duration"] = defaultDuration*2
-		},
-		[EVENT_LORE_BOOK_LEARNED_SKILL_EXPERIENCE] = {
-			["EventName"] = EVENT_LORE_BOOK_LEARNED_SKILL_EXPERIENCE,
-			["Emotes"] = {
-				[1] = 10,
-				[2] = 125,
-				[3] = 211,
-				--[4] = 212,
-			},
-			["Duration"] = defaultDuration
-		},
-		[EVENT_HIGH_FALL_DAMAGE] = {
-			["EventName"] = EVENT_HIGH_FALL_DAMAGE,
-			["Emotes"] = {
-				[1] = 115,
-				[2] = 148,
-				[3] = 12,
-				[4] = 167,
-				[5] = 133,
-				[6] = 80,
-				[7] = 172,
-				[8] = 71,
-			},
-			["Duration"] = defaultDuration*(2/3)
-		},
-		[EVENT_LOCKPICK_FAILED] = {
-			["EventName"] = EVENT_LOCKPICK_FAILED,
-			["Emotes"] = {
-				[1] = 32,
-				[2] = 32,
-				[3] = 154,
-				[4] = 12,
-				[5] = 166,
-				[6] = 109,
-				[7] = 109,
-			},
-			["Duration"] = defaultDuration*(2/3)
-		},
-		[EVENT_LOCKPICK_SUCCESS_EASY] = {
-			["EventName"] = EVENT_LOCKPICK_SUCCESS_EASY,
-			["Emotes"] = {
-				[1] = 129,
-				[2] = 42,
-				[3] = 36,
-				[4] = 78,
-				[5] = 41,
-			},
-			["Duration"] = defaultDuration
-		},
-		[EVENT_LOCKPICK_SUCCESS_MEDIUM] = {
-			["EventName"] = EVENT_LOCKPICK_SUCCESS_MEDIUM,
-			["Emotes"] = {
-				[1] = 129,
-				[2] = 36,
-				[3] = 36,
-				[4] = 91,
-				[5] = 95,
-				[6] = 95,
-			},
-			["Duration"] = defaultDuration
-		},
-		[EVENT_LOCKPICK_SUCCESS_HARD] = {
-			["EventName"] = EVENT_LOCKPICK_SUCCESS_HARD,
-			["Emotes"] = {
-				[1] = 95,
-				[2] = 25,
-				[3] = 25,
-				[4] = 25,
-				[5] = 82,
-				[6] = 149,
-				[7] = 36,
-				[8] = 26,
-				[9] = 66,
-			},
-			["Duration"] = defaultDuration
-		},
-		[EVENT_LOOT_RECEIVED_RUNE_TA] = {
-			["EventName"] = EVENT_LOOT_RECEIVED_RUNE_TA,
-			["Emotes"] = {
-				[1] = 29,
-				[2] = 69,
-				[3] = 73,
-				[4] = 33,
-				[5] = 134,
-				[6] = 40,
-				[7] = 133,
-				[8] = 23,
-			},
-			["Duration"] = defaultDuration*(2/3)
-		},
-		[EVENT_LOOT_RECEIVED_RUNE_REKUTA] = {
-			["EventName"] = EVENT_LOOT_RECEIVED_RUNE_REKUTA,
-			["Emotes"] = {
-				[1] = 36,
-				[2] = 54,
-				[3] = 42,
-				[4] = 81,
-				[5] = 129,
-				[6] = 26,
-			},
-			["Duration"] = defaultDuration*(2/3)
-		},
-		[EVENT_LOOT_RECEIVED_RUNE_KUTA] = {
-			["EventName"] = EVENT_LOOT_RECEIVED_RUNE_KUTA,
-			["Emotes"] = {
-				[1] = 67,
-				[2] = 13,
-				[3] = 66,
-				[4] = 25,
-				[5] = 162,
-				[6] = 72,
-				[7] = 149,
-				[8] = 26,
-			},
-			["Duration"] = defaultDuration
-		},
-		[EVENT_LOOT_RECEIVED_RARE_RECIPE_OR_MATERIAL] = {
-			["EventName"] = EVENT_LOOT_RECEIVED_RARE_RECIPE_OR_MATERIAL,
-			["Emotes"] = {
-				[1] = 67,
-				[2] = 13,
-				[3] = 66,
-				[4] = 25,
-				[5] = 162,
-				[6] = 72,
-				[7] = 149,
-				[8] = 26,
-			},
-			["Duration"] = defaultDuration
-		},
-		[EVENT_LOOT_RECEIVED_BETTER] = {
-			["EventName"] = EVENT_LOOT_RECEIVED_BETTER,
-			["Emotes"] = {
-				[1] = 25,
-				[2] = 25,
-				[3] = 39,
-				[4] = 14,
-				[5] = 150,
-				[6] = 54,
-				[7] = 163,
-				[8] = 130,
-			},
-			["Duration"] = defaultDuration
-		},
-		[EVENT_LOW_FALL_DAMAGE] = {
-			["EventName"] = EVENT_LOW_FALL_DAMAGE,
-			["Emotes"] = {
-				[1] = 133,
-				[2] = 80,
-				[3] = 33,
-				[4] = 148,
-			},
-			["Duration"] = defaultDuration/2
-		},
-		[EVENT_MOUNTED_STATE_CHANGED] = {
-			["EventName"] = EVENT_MOUNTED_STATE_CHANGED,
-			["Emotes"] = {
-				[1] = 91,
-				[2] = 110,
-				[3] = 80,
-			},
-			["Duration"] = defaultDuration*(2/3)
-		},
-		[EVENT_PLAYER_COMBAT_STATE_NOT_INCOMBAT] = {
-			["EventName"] = EVENT_PLAYER_COMBAT_STATE_NOT_INCOMBAT,
-			["Emotes"] = {
-				[1] = 78,
-				[2] = 161,
-				[3] = 39,
-				[4] = 178,
-				[5] = 52,
-				[6] = 119,
-				[7] = 199,
-			},
-			["Duration"] = defaultDuration*(1/2)
-		},
-		[EVENT_PLAYER_COMBAT_STATE_NOT_INCOMBAT_FLED] = {
-			["EventName"] = EVENT_PLAYER_COMBAT_STATE_NOT_INCOMBAT_FLED,
-			["Emotes"] = {
-				[1] = 95,
-				[2] = 95,
-				[3] = 74,
-				[4] = 73,
-				[5] = 93,
-				[6] = 109,
-				[7] = 78,
-			},
-			["Duration"] = defaultDuration*(1/2)
-		},
-		[EVENT_PLAYER_COMBAT_STATE_INCOMBAT] = {
-			["EventName"] = EVENT_PLAYER_COMBAT_STATE_INCOMBAT,
-			["Emotes"] = {
-				[1] = 27,
-				[2] = 159,
-				[3] = 163,
-				[4] = 106,
-				[5] = 158,
-				[6] = 158,
-			},
-			["Duration"] = defaultDuration*(2/3)
-		},
-		[EVENT_KILLED_BOSS] = {
-			["EventName"] = EVENT_KILLED_BOSS,
-			["Emotes"] = {
-				[1] = 199,
-				[2] = 161,
-				[3] = 119,
-				[4] = 178,
-				[5] = 25,
-				[6] = 151,
-				[7] = 145,
-				[8] = 62,
-				[9] = 13,
-				[10] = 22,
-				[11] = 97,
-				[12] = 8,
-			},
-			["Duration"] = defaultDuration
-		},
-		[EVENT_TRADE_SUCCEEDED] = {
-			["EventName"] = EVENT_TRADE_SUCCEEDED,
-			["Emotes"] = {
-				[1] = 150,
-				[2] = 130,
-			},
-			["Duration"] = defaultDuration/2
-		},
-		[EVENT_TRADE_CANCELED] = {
-			["EventName"] = EVENT_TRADE_CANCELED,
-			["Emotes"] = {
-				[1] = 148,
-				[2] = 152,
-				[3] = 169,
-				[4] = 54,
-				[5] = 81,
-				[6] = 155,
-				[7] = 32,
-				[8] = 62,
-				[9] = 44,
-				[10] = 44,
-				[11] = 44,
-				[12] = 151,
-			},
-			["Duration"] = defaultDuration/2
-		},
-		[EVENT_SKILL_POINTS_CHANGED] = {
-			["EventName"] = EVENT_SKILL_POINTS_CHANGED,
-			["Emotes"] = {
-				[1] = 104,
-				[2] = 52,
-				[3] = 98,
-				[4] = 164,
-			},
-			["Duration"] = defaultDuration
-		},
-		[EVENT_BANKED_MONEY_UPDATE_GROWTH] = {
-			["EventName"] = EVENT_BANKED_MONEY_UPDATE_GROWTH,
-			["Emotes"] = {
-				[1] = 193,
-				[2] = 193,
-				[3] = 173,
-				[4] = 198,
-				[5] = 54,
-			},
-			["Duration"] = defaultDuration
-		},
-		[EVENT_BANKED_MONEY_UPDATE_DOUBLE] = {
-			["EventName"] = EVENT_BANKED_MONEY_UPDATE_DOUBLE,
-			["Emotes"] = {
-				[1] = 25,
-				[2] = 193,
-				[3] = 78,
-				[4] = 82,
-				[5] = 97,
-			},
-			["Duration"] = defaultDuration
-		},
-		[EVENT_CAPTURE_FLAG_STATE_CHANGED_LOST_FLAG] = {
-			["EventName"] = EVENT_CAPTURE_FLAG_STATE_CHANGED_LOST_FLAG,
-			["Emotes"] = {
-				[1] = 115,
-				[2] = 62,
-				[3] = 22,
-				[4] = 148,
-				[5] = 134,
-			},
-			["Duration"] = defaultDuration/6
-		},
-		[EVENT_PLEDGE_OF_MARA_RESULT_PLEDGED] = {
-			["EventName"] = EVENT_PLEDGE_OF_MARA_RESULT_PLEDGED,
-			["Emotes"] = {
-				[1] = 20,
-				[2] = 21,
-				[3] = 130,
-			},
-			["Duration"] = defaultDuration*4
-		},
-	}
+	eventTTLEmotes = loadedOrCreatedEmotesTable["EVENT_TTL_EMOTES"]
+	eventTTLEmotes["isEnabled"] = false -- initially disenabled.
 end
 
 
@@ -1640,7 +1218,7 @@ end
 
 function SmartEmotes.UpdateTTLEmoteTable_For_EVENT_COMBAT_EVENT(eventCode, result, sourceName)
 	if sourceName ~= GetUnitName("player").."^Fx" or isInCombat then return end
-	if result == ACTION_RESULT_DIED_XP or result == ACTION_RESULT_DIED or 
+	if result == ACTION_RESULT_DIED_XP or result == ACTION_RESULT_DIED or
 	result == ACTION_RESULT_KILLING_BLOW or result == ACTION_RESULT_TARGET_DEAD then
 		if SmartEmotes.DoesEmoteFromTTLEqualEvent(EVENT_LEVEL_UPDATE, EVENT_KILLED_BOSS) then return end
 		SmartEmotes.UpdateTTLEmoteTable(EVENT_PLAYER_COMBAT_STATE_NOT_INCOMBAT)
@@ -1649,14 +1227,14 @@ end
 
 
 local function OnCombatEvent(eventCode, result, isError, abilityName, abilityGraphic, abilityActionSlotType, sourceName, sourceType, targetName, targetType, hitValue, powerType, damageType, log, sourceUnitId, targetUnitId, abilityId)
-	zo_callLater(function() 
-		SmartEmotes.UpdateTTLEmoteTable_For_EVENT_COMBAT_EVENT(eventCode, result, sourceName) 
+	zo_callLater(function()
+		SmartEmotes.UpdateTTLEmoteTable_For_EVENT_COMBAT_EVENT(eventCode, result, sourceName)
 	end, 0250)
 end
 
 
 function SmartEmotes.UpdateTTLEmoteTable_For_EVENT_PLAYER_COMBAT_STATE(eventCode, inCombat)
-	if SmartEmotes.DoesEmoteFromTTLEqualEvent(EVENT_LEVEL_UPDATE, EVENT_KILLED_BOSS, 
+	if SmartEmotes.DoesEmoteFromTTLEqualEvent(EVENT_LEVEL_UPDATE, EVENT_KILLED_BOSS,
 		EVENT_PLAYER_COMBAT_STATE_NOT_INCOMBAT) then return end
 	if not inCombat then
 		isInCombat = false
@@ -1711,7 +1289,7 @@ end
 
 function SmartEmotes.UpdateTTLEmoteTable_For_EVENT_LOOT_RECEIVED_RUNE(eventCode, itemName)
 	local quality = GetItemLinkQuality(itemName)
-	if quality == ITEM_QUALITY_NORMAL or quality == ITEM_QUALITY_ARTIFACT or 
+	if quality == ITEM_QUALITY_NORMAL or quality == ITEM_QUALITY_ARTIFACT or
 	quality == ITEM_QUALITY_LEGENDARY then
 		SmartEmotes.UpdateTTLEmoteTable(runeQualityToEvents[quality])
 	end
@@ -1729,7 +1307,7 @@ end
 local function OnLootReceived(eventCode, receivedBy, itemName, quantity, itemSound, lootType, self, isPickpocketLoot, questItemIcon, itemId)
 	if emoteFromTTL["EventName"] == eventTTLEmotes[EVENT_LEVEL_UPDATE]["EventName"] or
 	emoteFromTTL["EventName"] == eventTTLEmotes[EVENT_KILLED_BOSS]["EventName"] then return end
-	
+
 	local itemType = GetItemLinkItemType(itemName)
 	if IsItemLinkEnchantingRune(itemName) then
 		SmartEmotes.UpdateTTLEmoteTable_For_EVENT_LOOT_RECEIVED_RUNE(EVENT_LOOT_RECEIVED_RUNE, itemName)
@@ -1765,9 +1343,9 @@ function SmartEmotes.UpdateLatchedEmoteTable_For_EVENT_POWER_UPDATE(eventCode, u
 	if powerType == COMBAT_MECHANIC_FLAGS_STAMINA then
 		local lowerThreshold = powerEffectiveMax*(.20)
 		local upperThreshold = powerEffectiveMax*(.60)
-		if powerValue <= lowerThreshold then 
+		if powerValue <= lowerThreshold then
 			SmartEmotes.UpdateLatchedEmoteTable(EVENT_POWER_UPDATE_STAMINA)
-		elseif powerValue >= upperThreshold 
+		elseif powerValue >= upperThreshold
 		and SmartEmotes.DoesEmoteFromLatchedEqualEvent(EVENT_POWER_UPDATE_STAMINA) then
 			SmartEmotes.DisableLatchedEmotes()
 		end
@@ -1799,7 +1377,7 @@ function SmartEmotes.UpdateTTLEmoteTable_For_EVENT_LOCKPICK_SUCCESS(eventCode)
 	if lockpickQuality <= lockpickValues[LOCK_QUALITY_SIMPLE] then
 		SmartEmotes.UpdateTTLEmoteTable(EVENT_LOCKPICK_SUCCESS_EASY)
 		return
-	elseif lockpickQuality > lockpickValues[LOCK_QUALITY_SIMPLE] 
+	elseif lockpickQuality > lockpickValues[LOCK_QUALITY_SIMPLE]
 	and lockpickQuality <= lockpickValues[LOCK_QUALITY_ADVANCED] then
 		SmartEmotes.UpdateTTLEmoteTable(EVENT_LOCKPICK_SUCCESS_MEDIUM)
 		return
@@ -1812,7 +1390,7 @@ end
 
 function SmartEmotes.UpdateTTLEmoteTable_For_EVENT_BANKED_MONEY_UPDATE(eventCode, newBankedMoney, oldBankedMoney)
 	if eventCode ~= EVENT_BANKED_MONEY_UPDATE then return end
-	
+
 	local doubleOld = 2*oldBankedMoney
 	if newBankedMoney >= doubleOld then
 		SmartEmotes.UpdateTTLEmoteTable(EVENT_BANKED_MONEY_UPDATE_DOUBLE)
@@ -1833,7 +1411,7 @@ function SmartEmotes.UpdateTTLEmoteTable_For_EVENT_CAPTURE_FLAG_STATE_CHANGED(ev
 
 	local playerAlliance = GetUnitBattlegroundAlliance("player")
 	if objectiveControlEvent == OBJECTIVE_CONTROL_EVENT_FLAG_TAKEN then
-		if originalOwnerAlliance == playerAlliance and holderAlliance ~= playerAlliance then 
+		if originalOwnerAlliance == playerAlliance and holderAlliance ~= playerAlliance then
 			SmartEmotes.UpdateTTLEmoteTable(EVENT_CAPTURE_FLAG_STATE_CHANGED_LOST_FLAG)
 		end
 	end
@@ -1847,8 +1425,8 @@ function SmartEmotes.UpdateTTLEmoteTable_For_EVENT_PLEDGE_OF_MARA_RESULT(eventCo
  		isReasonBegin = true
  		--PUT ON SUIT IN LOREWEAR
  		LPEventHandler:FireEvent(EVENT_PLEDGE_OF_MARA_MARRIAGE, true, true) --isGettingMarried
- 	elseif reason == PLEDGE_OF_MARA_RESULT_PLEDGED then 
- 		isReasonPledged = true 
+ 	elseif reason == PLEDGE_OF_MARA_RESULT_PLEDGED then
+ 		isReasonPledged = true
  		LPEventHandler:FireEvent(EVENT_PLEDGE_OF_MARA_MARRIAGE, true, false, targetCharacterName) --isGettingMarried
  	end
  	if isReasonBegin or isReasonPledged then
@@ -1889,7 +1467,7 @@ end
 
 
 function SmartEmotes.InitializeIndicator()
-	if not LorePlay.db.isSmartEmotesIndicatorOn then 
+	if not LorePlay.db.isSmartEmotesIndicatorOn then
 		SmartEmotesIndicator:SetHidden(true)
 	end
 	if LorePlay.db.indicatorTop then
@@ -1909,12 +1487,64 @@ function SmartEmotes.InitializeIndicator()
 end
 
 
-function SmartEmotes.InitializeEmotes()
+function SmartEmotes.CreateAllEmotesTables()
+	SmartEmotes.ReloadSmartEmotes() -- sets loadedOrCreatedEmotesTable[]
 	SmartEmotes.CreateTTLEmoteEventTable()
 	SmartEmotes.CreateLatchedEmoteEventTable()
 	SmartEmotes.CreateReticleEmoteTable()
 	SmartEmotes.CreateDefaultEmoteTables()
 	SmartEmotes.CreateTitleNameReverseTable()
+end
+
+function SmartEmotes.ExportSmartEmotes()
+	local currentEmotes = LorePlay.LPUtilities.DeepCopy(loadedOrCreatedEmotesTable) or {}
+	local copyCurrent = {}
+	for category, categoryTable in pairs(currentEmotes) do
+		copyCurrent[category] = {}
+		if type(categoryTable) == "table" then
+			for eventKey, eventTable in pairs(categoryTable) do
+				if type(eventTable) == "table" then
+					-- map emote indeces to slashNames
+					if eventTable["Emotes"] ~= nil then
+						eventTable["Emotes"] = LorePlay.LPUtilities.Map(eventTable["Emotes"], GetEmoteSlashNameByIndex)
+					elseif type(eventTable) == "table" then
+						local subEntries = {}
+						for key, value in pairs(eventTable) do
+							subEntries[key] = {
+								["Emotes"] = LorePlay.LPUtilities.Map(
+									value["Emotes"],
+									GetEmoteSlashNameByIndex
+							) }
+						end
+						eventTable["SubEntries"] = subEntries
+					end
+
+					-- Whitelist Attributes.
+					copyCurrentEvent = {
+						["Duration"] = eventTable["Duration"],
+						["Emotes"] = eventTable["Emotes"],
+						["SubEntries"] = eventTable["SubEntries"],
+					}
+
+					if eventTable["EventName"] ~= nil then
+						copyCurrentEvent["EventName"] = eventTable["EventName"]
+					else
+						copyCurrentEvent["Key"] = eventTable["Key"] or eventKey
+					end
+
+					-- not as table but as list
+					table.insert(copyCurrent[category], copyCurrentEvent)
+				end
+			end
+		end
+	end
+
+	return copyCurrent
+end
+
+
+function SmartEmotes.InitializeEmotes()
+	SmartEmotes.CreateAllEmotesTables()
 	SmartEmotes.RegisterSmartEvents()
 	SmartEmotes.InitializeIndicator()
 	SmartEmotes.UpdateTTLEmoteTable(EVENT_STARTUP)

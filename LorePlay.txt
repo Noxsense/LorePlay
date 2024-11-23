@@ -4,7 +4,7 @@
 ## AddOnVersion: 10694
 ## APIVersion: 101044
 ## Author: Justinon, Calamath
-## SavedVariables: LorePlaySavedVars
+## SavedVariables: LorePlaySavedVars LorePlaySavedCustomSmartEmotes LorePlaySavedCustomIdleEmotes
 ## DependsOn: LibAddonMenu-2.0>=37 LibEventHandler>=1307
 ## OptionalDependsOn: LibDebugLogger>=263
 
